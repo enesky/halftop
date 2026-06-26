@@ -1,0 +1,8 @@
+.DS_Store
+.build/
+.clang-module-cache/
+DerivedData/
+*.xcuserstate
+*.swp
+*.tmp
+
