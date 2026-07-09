@@ -14,6 +14,7 @@ This repository consolidates the tools developed in the `MacOS Apps` directory. 
 | [Auto-SideScreen-USB](Auto-SideScreen-USB/README.md) | Swift launcher + UI automation | Starts SideScreen in USB mode with a single shortcut. |
 | [Battery Voice Alert](Battery%20Voice%20Alert/README.md) | LaunchAgent script | Announces battery warnings when the MacBook drops below configured thresholds. |
 | [Bag Sleep Guard](bag-sleep-guard/README.md) | LaunchAgent script | Puts a closed or bagged MacBook back to sleep when it wakes without user input. |
+| [Clamshell Ready](ClamshellReady/README.md) | SwiftUI menu bar app | Manages external-display clamshell workflows, optional battery assertions, and lid-close override state from a compact menu bar UI. |
 | [Headless Auto Re-Sleep](headless-auto-resleep/README.md) | Swift helper + installer | Checks display and input state after a headless wake, then returns the Mac to sleep when appropriate. |
 | [Lock Screen Sayer](lock-screen-sayer/README.md) | Swift helper + LaunchAgent | Announces when the screen is locked. |
 | [SideScreen](SideScreen/README.md) | Open-source macOS + Android app | Uses an Android device as a second display; this version adds automation and auto-connect workflows for headless use. |
