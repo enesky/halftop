@@ -17,7 +17,7 @@ struct MenuContentView: View {
             Divider()
             if let error = monitor.errorMessage { Text(error).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
             switchRow("Allow on Battery", Binding(get: { monitor.allowOnBattery }, set: { monitor.setAllowOnBattery($0) }))
-            switchRow("Ignore Lid Close (admin)", Binding(get: { monitor.lidOverrideActive }, set: { monitor.setLidOverrideEnabled($0) }))
+            switchRow("Ignore Lid Close (Disable sleep)", Binding(get: { monitor.lidOverrideActive }, set: { monitor.setLidOverrideEnabled($0) }))
             switchRow("Launch at Login", Binding(get: { monitor.launchAtLogin }, set: { monitor.setLaunchAtLogin($0) }))
             Divider()
             status("External Display", monitor.hasExternalDisplay ? "Connected" : "Not connected")
@@ -27,6 +27,7 @@ struct MenuContentView: View {
             HStack {
                 Button("Refresh") { monitor.refresh() }
                 Spacer()
+                Button("Go to Sleep") { monitor.goToSleep() }
                 Button("Quit") { monitor.stop(); NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
             }
         }

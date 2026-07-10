@@ -83,6 +83,16 @@ import ServiceManagement
     func stop() {
         restoreNormalPowerBehavior()
     }
+    func goToSleep() {
+        restoreNormalPowerBehavior()
+        do {
+            try SystemSleep.sleepNow()
+            lastActionError = nil
+        } catch {
+            lastActionError = error.localizedDescription
+            refresh()
+        }
+    }
 
     private func restoreNormalPowerBehavior() {
         assertion.release()
