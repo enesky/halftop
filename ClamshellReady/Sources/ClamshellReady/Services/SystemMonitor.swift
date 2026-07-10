@@ -84,7 +84,7 @@ import ServiceManagement
         restoreNormalPowerBehavior()
     }
     func goToSleep() {
-        restoreNormalPowerBehavior()
+        releaseAppAssertionOnly()
         do {
             try SystemSleep.sleepNow()
             lastActionError = nil
@@ -94,9 +94,13 @@ import ServiceManagement
         }
     }
 
-    private func restoreNormalPowerBehavior() {
+    private func releaseAppAssertionOnly() {
         assertion.release()
         assertionActive = false
+    }
+
+    private func restoreNormalPowerBehavior() {
+        releaseAppAssertionOnly()
         if lidOverrideActive || ownsLidOverride {
             do {
                 try LidSleepOverride.setEnabled(false)
