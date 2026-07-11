@@ -2,6 +2,8 @@
 
 Native SwiftUI menu bar app for Apple Silicon Macs. It helps keep a MacBook awake for external-display workflows without changing global sleep behavior unless the user explicitly enables lid-close override mode.
 
+![ClamshellReady menu UI](ss-menu-ui.png)
+
 ## Behavior
 
 - If no real external display is connected, the app does not try to keep the system awake.
