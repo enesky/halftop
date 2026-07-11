@@ -19,6 +19,10 @@ This repository consolidates the tools developed in the `MacOS Apps` directory. 
 | [Lock Screen Sayer](lock-screen-sayer/README.md) | Swift helper + LaunchAgent | Announces when the screen is locked. |
 | [SideScreen](SideScreen/README.md) | Open-source macOS + Android app | Uses an Android device as a second display; this version adds automation and auto-connect workflows for headless use. |
 
+### ClamshellReady menu
+
+![ClamshellReady menu UI](ClamshellReady/ss-menu-ui.png)
+
 ## Customized SideScreen
 
 [SideScreen](https://github.com/tranvuongquocdat/SideScreen) is an open-source macOS and Android application. The version included in this repository extends the upstream project with headless-focused automation and auto-connect workflows, including URL-scheme and launch-argument based USB auto-start plus companion launcher and UI automation scripts.
