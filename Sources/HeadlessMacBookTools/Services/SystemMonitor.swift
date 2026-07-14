@@ -16,6 +16,7 @@ import ServiceManagement
     @Published private(set) var errorMessage: String?
     @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var dimBuiltInAtLogin = UserDefaults.standard.bool(forKey: "dimBuiltInAtLogin")
+    @Published private(set) var disableBuiltInDisplay = UserDefaults.standard.bool(forKey: "disableBuiltInDisplay")
     @Published private(set) var loginWakeSoundEnabled = SystemMonitor.initialLoginWakeSoundSetting()
     @Published private(set) var allowOnBattery = UserDefaults.standard.bool(forKey: "allowOnBattery")
     @Published private(set) var lidOverrideDesired = UserDefaults.standard.bool(forKey: "lidOverrideDesired")
@@ -46,7 +47,7 @@ import ServiceManagement
     }
 
     func refresh() {
-        hasBuiltInDisplay = Self.detectBuiltInDisplay()
+        hasBuiltInDisplay = hasBuiltInDisplay || Self.detectBuiltInDisplay()
         hasExternalDisplay = Self.detectExternalDisplay()
         hasAirPlayDisplay = Self.detectAirPlayDisplay()
         isOnACPower = Self.detectACPower()
@@ -58,6 +59,7 @@ import ServiceManagement
             errorMessage = lastActionError
         } catch { assertionActive = false; errorMessage = error.localizedDescription }
         launchAtLogin = SMAppService.mainApp.status == .enabled
+        applyBuiltInDisplayPreference()
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
@@ -74,6 +76,11 @@ import ServiceManagement
         dimBuiltInAtLogin = enabled
         UserDefaults.standard.set(enabled, forKey: "dimBuiltInAtLogin")
         if enabled { dimBuiltInDisplay() }
+    }
+    func setDisableBuiltInDisplay(_ enabled: Bool) {
+        disableBuiltInDisplay = enabled
+        UserDefaults.standard.set(enabled, forKey: "disableBuiltInDisplay")
+        applyBuiltInDisplayPreference()
     }
     func setLoginWakeSoundEnabled(_ enabled: Bool) {
         loginWakeSoundEnabled = enabled
@@ -100,6 +107,7 @@ import ServiceManagement
         }
     }
     func stop() {
+        _ = BuiltInDisplayControl.setDisabled(false)
         restoreNormalPowerBehavior()
     }
     func goToSleep() {
@@ -148,6 +156,16 @@ import ServiceManagement
         }
     }
 
+    private func applyBuiltInDisplayPreference() {
+        if let error = BuiltInDisplayControl.setDisabled(disableBuiltInDisplay && hasExternalDisplay) {
+            lastActionError = error
+            errorMessage = error
+        } else {
+            lastActionError = nil
+            errorMessage = nil
+        }
+    }
+
     private func restoreNormalPowerBehavior() {
         releaseAppAssertionOnly()
         lidOverrideDesired = false
@@ -168,6 +186,7 @@ import ServiceManagement
 
     private func handleWake() {
         isPreparingForSleep = false
+        BuiltInDisplayControl.invalidateState()
         refresh()
         playLoginWakeSound()
         if dimBuiltInAtLogin { scheduleBuiltInDisplayDim() }

@@ -210,6 +210,7 @@ struct MenuContentView: View {
             switchRow("Ignore Lid Close (Disable Sleep)", monitor.lidOverrideDesired, monitor.setLidOverrideEnabled)
             if monitor.hasBuiltInDisplay {
                 switchRow("Dim Built-in Display", monitor.dimBuiltInAtLogin, monitor.setDimBuiltInAtLogin)
+                switchRow("Disable Built-in Display", monitor.disableBuiltInDisplay, monitor.setDisableBuiltInDisplay)
             }
         }
     }
@@ -223,6 +224,7 @@ struct MenuContentView: View {
             infoRow("Allow on Battery", "Also keeps the Mac awake without a power adapter when a physical external display is connected.")
             infoRow("Ignore Lid Close", "Uses an unsupported system-wide sleep override. It may require administrator approval and should be used carefully.")
             infoRow("Dim Built-in Display", "Sets only the MacBook's built-in display brightness to zero.")
+            infoRow("Disable Built-in Display", "Disables the built-in display while a physical external display is connected. Experimental and unsupported by macOS.")
         }
         .padding(14)
         .frame(width: 330)
