@@ -19,7 +19,7 @@ import ServiceManagement
     @Published private(set) var assertionActive = false
     @Published private(set) var lidOverrideActive = false
     @Published private(set) var errorMessage: String?
-    @Published private(set) var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @Published private(set) var launchAtLogin = SystemMonitor.detectLaunchAtLogin()
     @Published private(set) var dimBuiltInAtLogin = UserDefaults.standard.bool(forKey: "dimBuiltInAtLogin")
     @Published private(set) var disableBuiltInDisplay = UserDefaults.standard.bool(forKey: "disableBuiltInDisplay")
     @Published private(set) var loginWakeSoundEnabled = SystemMonitor.initialLoginWakeSoundSetting()
@@ -78,18 +78,31 @@ import ServiceManagement
             lidOverrideActive = (try? LidSleepOverride.isEnabled()) ?? lidOverrideActive
             errorMessage = lastActionError
         } catch { assertionActive = false; errorMessage = error.localizedDescription }
-        launchAtLogin = SMAppService.mainApp.status == .enabled
+        launchAtLogin = Self.detectLaunchAtLogin()
         applyBuiltInDisplayPreference()
     }
 
     func setLaunchAtLogin(_ enabled: Bool) {
         do {
-            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            launchAtLogin = enabled
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                if SMAppService.mainApp.status == .enabled {
+                    try SMAppService.mainApp.unregister()
+                }
+                try Self.setLaunchAgentLoginItem(false)
+            }
+            launchAtLogin = Self.detectLaunchAtLogin()
             errorMessage = nil
         } catch {
-            launchAtLogin = SMAppService.mainApp.status == .enabled
-            errorMessage = "Could not update Launch at Login: \(error.localizedDescription)"
+            do {
+                try Self.setLaunchAgentLoginItem(enabled)
+                launchAtLogin = Self.detectLaunchAtLogin()
+                errorMessage = nil
+            } catch {
+                launchAtLogin = Self.detectLaunchAtLogin()
+                errorMessage = "Could not update Launch at Login: \(error.localizedDescription)"
+            }
         }
     }
     func setDimBuiltInAtLogin(_ enabled: Bool) {
@@ -269,6 +282,54 @@ import ServiceManagement
 
     private static func sleepWakeSelfCheck() {
         assert(isUserInitiatedWake(lidOpen: true))
+    }
+
+    private static func detectLaunchAtLogin() -> Bool {
+        SMAppService.mainApp.status == .enabled || FileManager.default.fileExists(atPath: launchAgentURL.path)
+    }
+
+    private static func setLaunchAgentLoginItem(_ enabled: Bool) throws {
+        guard !enabled || Bundle.main.bundleURL.pathExtension == "app" else {
+            throw NSError(domain: "Halftop", code: 1, userInfo: [NSLocalizedDescriptionKey: "Halftop must be run from the app bundle to enable Launch at Login."])
+        }
+        if enabled {
+            try FileManager.default.createDirectory(at: launchAgentURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try launchAgentPlist().write(to: launchAgentURL)
+            try runLaunchctl(["bootout", "gui/\(getuid())", launchAgentURL.path], allowFailure: true)
+            try runLaunchctl(["bootstrap", "gui/\(getuid())", launchAgentURL.path])
+        } else {
+            try runLaunchctl(["bootout", "gui/\(getuid())", launchAgentURL.path], allowFailure: true)
+            try? FileManager.default.removeItem(at: launchAgentURL)
+        }
+    }
+
+    private static var launchAgentURL: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/LaunchAgents/com.eky.halftop.login.plist")
+    }
+
+    private static func launchAgentPlist() throws -> Data {
+        try PropertyListSerialization.data(fromPropertyList: [
+            "Label": "com.eky.halftop.login",
+            "ProgramArguments": ["/usr/bin/open", Bundle.main.bundlePath],
+            "RunAtLoad": true,
+            "LimitLoadToSessionType": "Aqua"
+        ], format: .xml, options: 0)
+    }
+
+    private static func runLaunchctl(_ arguments: [String], allowFailure: Bool = false) throws {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = arguments
+        process.standardOutput = output
+        process.standardError = output
+        try process.run()
+        process.waitUntilExit()
+        if process.terminationStatus != 0 && !allowFailure {
+            let text = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+            throw NSError(domain: "Halftop", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: text.trimmingCharacters(in: .whitespacesAndNewlines)])
+        }
     }
 
     private func playLoginWakeSound() {
