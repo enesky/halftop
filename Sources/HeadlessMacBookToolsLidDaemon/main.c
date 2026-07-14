@@ -19,14 +19,14 @@ static void handle_signal(int signal_number) {
     should_stop = 1;
 }
 
-static int run_pmset(const char *value) {
+static int run_pmset(const char *source, const char *key, const char *value) {
     pid_t pid = fork();
     if (pid < 0) {
         return errno;
     }
 
     if (pid == 0) {
-        execl("/usr/bin/pmset", "pmset", "-b", "disablesleep", value, (char *)NULL);
+        execl("/usr/bin/pmset", "pmset", source, key, value, (char *)NULL);
         _exit(127);
     }
 
@@ -74,17 +74,39 @@ static void handle_client(int client_fd, uid_t allowed_uid) {
 
     buffer[strcspn(buffer, "\r\n")] = '\0';
 
+    const char *source = "-b";
+    const char *key = "disablesleep";
     const char *value = NULL;
     if (strcmp(buffer, "enable") == 0) {
         value = "1";
     } else if (strcmp(buffer, "disable") == 0) {
         value = "0";
+    } else if (strcmp(buffer, "energy-b-low-0") == 0) {
+        key = "lowpowermode"; value = "0";
+    } else if (strcmp(buffer, "energy-b-low-1") == 0) {
+        key = "lowpowermode"; value = "1";
+    } else if (strcmp(buffer, "energy-c-low-0") == 0) {
+        source = "-c"; key = "lowpowermode"; value = "0";
+    } else if (strcmp(buffer, "energy-c-low-1") == 0) {
+        source = "-c"; key = "lowpowermode"; value = "1";
+    } else if (strcmp(buffer, "energy-b-power-0") == 0) {
+        key = "powermode"; value = "0";
+    } else if (strcmp(buffer, "energy-b-power-1") == 0) {
+        key = "powermode"; value = "1";
+    } else if (strcmp(buffer, "energy-b-power-2") == 0) {
+        key = "powermode"; value = "2";
+    } else if (strcmp(buffer, "energy-c-power-0") == 0) {
+        source = "-c"; key = "powermode"; value = "0";
+    } else if (strcmp(buffer, "energy-c-power-1") == 0) {
+        source = "-c"; key = "powermode"; value = "1";
+    } else if (strcmp(buffer, "energy-c-power-2") == 0) {
+        source = "-c"; key = "powermode"; value = "2";
     } else {
         write_all(client_fd, "ERR invalid command\n");
         return;
     }
 
-    int result = run_pmset(value);
+    int result = run_pmset(source, key, value);
     if (result == 0) {
         write_all(client_fd, "OK\n");
     } else {

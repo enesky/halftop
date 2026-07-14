@@ -9,7 +9,13 @@ import ServiceManagement
     @Published private(set) var hasExternalDisplay = false
     @Published private(set) var hasAirPlayDisplay = false
     @Published private(set) var hasBuiltInDisplay = false
+    @Published private(set) var isBuiltInDisplayEnabled = false
     @Published private(set) var isOnACPower = false
+    @Published private(set) var energyMode: EnergyMode = .unavailable
+    @Published private(set) var batteryEnergyMode: EnergyMode = .unavailable
+    @Published private(set) var adapterEnergyMode: EnergyMode = .unavailable
+    @Published private(set) var supportsHighPowerMode = false
+    @Published private(set) var isChangingEnergyMode = false
     @Published private(set) var lidState: LidState = .unavailable
     @Published private(set) var assertionActive = false
     @Published private(set) var lidOverrideActive = false
@@ -23,10 +29,13 @@ import ServiceManagement
     private let assertion = PowerAssertion()
     private var timer: Timer?
     private var dimTask: Task<Void, Never>?
+    private var energyModeRefreshTask: Task<Void, Never>?
     private var observers: [NSObjectProtocol] = []
     private var ownsLidOverride = false
     private var isPreparingForSleep = false
     private var lastActionError: String?
+    private var energyModeKey: String?
+    private var energyModeSettlingUntil = Date.distantPast
     private var restoreLidOverrideAfterWake = UserDefaults.standard.bool(forKey: "restoreLidOverrideAfterWake")
     private var lastLoginWakeSound = Date.distantPast
 
@@ -43,14 +52,25 @@ import ServiceManagement
         observers.append(center.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.refresh() } })
         observers.append(center.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.handleWake() } })
         observers.append(center.addObserver(forName: NSWorkspace.sessionDidBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.playLoginWakeSound() } })
-        timer = .scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in Task { @MainActor in self?.refresh() } }
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in Task { @MainActor in self?.refresh() } }
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     func refresh() {
-        hasBuiltInDisplay = hasBuiltInDisplay || Self.detectBuiltInDisplay()
+        isBuiltInDisplayEnabled = Self.detectBuiltInDisplay()
+        hasBuiltInDisplay = hasBuiltInDisplay || isBuiltInDisplayEnabled || Self.hasBuiltInBattery()
         hasExternalDisplay = Self.detectExternalDisplay()
         hasAirPlayDisplay = Self.detectAirPlayDisplay()
         isOnACPower = Self.detectACPower()
+        let modes = Self.detectEnergyModes(hasBuiltInBattery: hasBuiltInDisplay)
+        energyModeKey = modes.key
+        supportsHighPowerMode = modes.key == "power"
+        if Date() >= energyModeSettlingUntil {
+            batteryEnergyMode = modes.battery
+            adapterEnergyMode = modes.adapter
+        }
+        energyMode = isOnACPower ? adapterEnergyMode : batteryEnergyMode
         lidState = Self.detectLidState()
         do {
             try assertion.update(shouldBeActive: !isPreparingForSleep && hasExternalDisplay && (isOnACPower || allowOnBattery))
@@ -106,6 +126,41 @@ import ServiceManagement
             refresh()
         }
     }
+    func setEnergyMode(_ mode: EnergyMode, for source: EnergyPowerSource) {
+        guard let energyModeKey, !isChangingEnergyMode else { return }
+        energyModeRefreshTask?.cancel()
+        energyModeSettlingUntil = Date().addingTimeInterval(8)
+        isChangingEnergyMode = true
+        if source == .battery { batteryEnergyMode = mode } else { adapterEnergyMode = mode }
+        energyMode = isOnACPower ? adapterEnergyMode : batteryEnergyMode
+        energyModeRefreshTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.detached(priority: .userInitiated) {
+                    try EnergyModeControl.set(mode, for: source, key: energyModeKey)
+                }.value
+                guard !Task.isCancelled, let self else { return }
+                for _ in 0..<32 {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard !Task.isCancelled else { return }
+                    let modes = Self.detectEnergyModes(hasBuiltInBattery: self.hasBuiltInDisplay)
+                    let confirmed = source == .battery ? modes.battery : modes.adapter
+                    if confirmed == mode { break }
+                }
+                self.energyModeSettlingUntil = .distantPast
+                self.isChangingEnergyMode = false
+                self.lastActionError = nil
+                self.errorMessage = nil
+                self.refresh()
+            } catch {
+                guard let self else { return }
+                self.energyModeSettlingUntil = .distantPast
+                self.isChangingEnergyMode = false
+                self.refresh()
+                self.lastActionError = error.localizedDescription
+                self.errorMessage = self.lastActionError
+            }
+        }
+    }
     func stop() {
         _ = BuiltInDisplayControl.setDisabled(false)
         restoreNormalPowerBehavior()
@@ -157,6 +212,11 @@ import ServiceManagement
     }
 
     private func applyBuiltInDisplayPreference() {
+        if disableBuiltInDisplay && hasExternalDisplay && !isBuiltInDisplayEnabled {
+            lastActionError = nil
+            errorMessage = nil
+            return
+        }
         if let error = BuiltInDisplayControl.setDisabled(disableBuiltInDisplay && hasExternalDisplay) {
             lastActionError = error
             errorMessage = error
@@ -259,8 +319,76 @@ import ServiceManagement
         guard CGGetOnlineDisplayList(count, &displays, &count) == .success else { return false }
         return displays.prefix(Int(count)).contains { CGDisplayIsBuiltin($0) != 0 }
     }
+    private static func hasBuiltInBattery() -> Bool {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
+        guard service != 0 else { return false }
+        IOObjectRelease(service)
+        return true
+    }
     private static func detectACPower() -> Bool {
         IOPSCopyExternalPowerAdapterDetails()?.takeRetainedValue() != nil
+    }
+    private static func detectEnergyModes(hasBuiltInBattery: Bool) -> (battery: EnergyMode, adapter: EnergyMode, key: String?) {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        process.arguments = ["-g", "custom"]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return (.unavailable, .unavailable, nil) }
+        process.waitUntilExit()
+        guard process.terminationStatus == 0,
+              let text = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) else {
+            return (.unavailable, .unavailable, nil)
+        }
+
+        var source: EnergyPowerSource?
+        var battery: EnergyMode = .unavailable
+        var adapter: EnergyMode = .unavailable
+        var key: String?
+        for line in text.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed == "Battery Power:" { source = .battery; continue }
+            if trimmed == "AC Power:" { source = .adapter; continue }
+            let parts = trimmed.split(whereSeparator: \Character.isWhitespace)
+            guard parts.count >= 2, let value = Int(parts[1]) else { continue }
+            let setting = String(parts[0])
+            guard setting == "powermode" || setting == "lowpowermode" else { continue }
+            key = setting == "powermode" ? "power" : "low"
+            let mode: EnergyMode = switch value { case 1: .lowPower; case 2: .highPower; default: .automatic }
+            if source == .battery { battery = mode }
+            if source == .adapter { adapter = mode }
+        }
+        let stored = storedEnergyModes()
+        if stored.battery != .unavailable { battery = stored.battery }
+        if stored.adapter != .unavailable { adapter = stored.adapter }
+        if let storedKey = stored.key { key = storedKey }
+        if battery == .unavailable, hasBuiltInBattery, key != nil { battery = .automatic }
+        return (battery, adapter, key)
+    }
+    private static func storedEnergyModes() -> (battery: EnergyMode, adapter: EnergyMode, key: String?) {
+        let directory = URL(fileURLWithPath: "/Library/Preferences", isDirectory: true)
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for file in files where file.lastPathComponent.hasPrefix("com.apple.PowerManagement.") && file.pathExtension == "plist" {
+            guard let data = try? Data(contentsOf: file),
+                  let plist = try? PropertyListSerialization.propertyList(from: data, format: nil),
+                  let profiles = plist as? [String: Any] else { continue }
+            let battery = storedEnergyMode(in: profiles["Battery Power"])
+            let adapter = storedEnergyMode(in: profiles["AC Power"])
+            if battery.mode != .unavailable || adapter.mode != .unavailable {
+                return (battery.mode, adapter.mode, battery.key ?? adapter.key)
+            }
+        }
+        return (.unavailable, .unavailable, nil)
+    }
+    private static func storedEnergyMode(in profile: Any?) -> (mode: EnergyMode, key: String?) {
+        guard let settings = profile as? [String: Any] else { return (.unavailable, nil) }
+        let pair: (Any?, String) = settings["PowerMode"] != nil
+            ? (settings["PowerMode"], "power")
+            : (settings["LowPowerMode"], "low")
+        guard let value = pair.0 as? NSNumber else { return (.unavailable, nil) }
+        let mode: EnergyMode = switch value.intValue { case 1: .lowPower; case 2: .highPower; default: .automatic }
+        return (mode, pair.1)
     }
     private static func detectLidState() -> LidState {
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))

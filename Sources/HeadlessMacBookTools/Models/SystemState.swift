@@ -3,6 +3,28 @@ enum LidState: Equatable, Sendable {
     var text: String { switch self { case .open: "Open"; case .closed: "Closed"; case .unavailable: "Not Connected" } }
 }
 
+enum EnergyMode: Hashable, Sendable, CaseIterable {
+    case automatic, lowPower, highPower, unavailable
+
+    static var configurable: [Self] { [.lowPower, .automatic, .highPower] }
+
+    var text: String {
+        switch self {
+        case .automatic: "Automatic"
+        case .lowPower: "Low Power"
+        case .highPower: "High Power"
+        case .unavailable: "Unavailable"
+        }
+    }
+}
+
+enum EnergyPowerSource: Sendable {
+    case battery, adapter
+
+    var title: String { self == .battery ? "On Battery" : "On Power Adapter" }
+    var helperKey: String { self == .battery ? "b" : "c" }
+}
+
 enum ActiveMode: Equatable, Sendable {
     case normal, clamshellReady, noExternalDisplay
     static func resolve(hasExternalDisplay: Bool, isOnACPower: Bool, allowOnBattery: Bool, activeModeEnabled: Bool) -> Self {

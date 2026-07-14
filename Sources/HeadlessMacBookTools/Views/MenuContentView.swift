@@ -24,6 +24,8 @@ struct MenuContentView: View {
                 sleepToolsInfo
             }
             Divider()
+            energyModeSection
+            Divider()
             infoSection("NOTIFICATIONS", isPresented: $showingNotificationsInfo, help: "About Notifications") {
                 switchRow("Login, Wake & Unlock Sound", monitor.loginWakeSoundEnabled, monitor.setLoginWakeSoundEnabled)
                 ForEach(tools.services.filter { !$0.id.contains("sleep") }, id: \.id) { serviceToggle($0) }
@@ -65,15 +67,13 @@ struct MenuContentView: View {
     }
 
     private var systemStatus: some View {
-        VStack(spacing: 8) {
-            HStack {
-                status("External Display", monitor.hasExternalDisplay ? "Connected" : "Not Connected")
-                status("AirPlay", monitor.hasAirPlayDisplay ? "Connected" : "Not Connected")
-            }
-            HStack {
-                status("Power Adapter", monitor.isOnACPower ? "Connected" : "Not Connected")
-                status("Lid", monitor.lidState.text)
-            }
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
+            status("Built-in Display", monitor.disableBuiltInDisplay ? "Disabled" : "Enabled")
+            status("External Display", monitor.hasExternalDisplay ? "Connected" : "Not Connected")
+            status("AirPlay", monitor.hasAirPlayDisplay ? "Connected" : "Not Connected")
+            status("Lid", monitor.lidState.text)
+            status("Power Source", monitor.isOnACPower ? "Power Adapter" : "Battery")
+            status("Energy Mode", monitor.energyMode.text)
         }
     }
 
@@ -100,6 +100,34 @@ struct MenuContentView: View {
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    private var energyModeSection: some View {
+        section("ENERGY MODE") {
+            if monitor.batteryEnergyMode != .unavailable {
+                energyModePicker(.battery)
+            }
+            if monitor.adapterEnergyMode != .unavailable {
+                energyModePicker(.adapter)
+            }
+        }
+    }
+
+    private func energyModePicker(_ source: EnergyPowerSource) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(source.title).font(.caption).foregroundStyle(.secondary)
+            Picker(source.title, selection: Binding(
+                get: { source == .battery ? monitor.batteryEnergyMode : monitor.adapterEnergyMode },
+                set: { monitor.setEnergyMode($0, for: source) }
+            )) {
+                ForEach(EnergyMode.configurable.filter { monitor.supportsHighPowerMode || $0 != .highPower }, id: \.self) {
+                    Text($0.text).tag($0)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .disabled(monitor.isChangingEnergyMode)
         }
     }
 
@@ -209,8 +237,10 @@ struct MenuContentView: View {
             switchRow("Allow on Battery", monitor.allowOnBattery, monitor.setAllowOnBattery)
             switchRow("Ignore Lid Close (Disable Sleep)", monitor.lidOverrideDesired, monitor.setLidOverrideEnabled)
             if monitor.hasBuiltInDisplay {
-                switchRow("Dim Built-in Display", monitor.dimBuiltInAtLogin, monitor.setDimBuiltInAtLogin)
                 switchRow("Disable Built-in Display", monitor.disableBuiltInDisplay, monitor.setDisableBuiltInDisplay)
+                if !monitor.disableBuiltInDisplay {
+                    switchRow("Dim Built-in Display", monitor.dimBuiltInAtLogin, monitor.setDimBuiltInAtLogin)
+                }
             }
         }
     }

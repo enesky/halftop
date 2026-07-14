@@ -5,6 +5,7 @@ enum LidHelperInstaller {
     private static let label = "com.eky.ClamshellReady.LidDaemon"
     private static let installPath = "/usr/local/libexec/clamshell-ready-lid-daemon"
     private static let plistPath = "/Library/LaunchDaemons/\(label).plist"
+    private static let socketPath = "/var/run/clamshell-ready-lid-helper.sock"
 
     static func install() throws {
         let source = Bundle.main.bundleURL
@@ -31,6 +32,11 @@ enum LidHelperInstaller {
             "-e",
             #"do shell script "/bin/sh " & quoted form of "\#(scriptURL.path)" with administrator privileges"#
         ])
+        for _ in 0..<40 {
+            if FileManager.default.fileExists(atPath: socketPath) { return }
+            usleep(50_000)
+        }
+        throw LidSleepOverrideError.helperUnavailable
     }
 
     private static func launchDaemonPlist(allowedUID: uid_t) -> String {
