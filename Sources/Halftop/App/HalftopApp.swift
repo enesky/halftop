@@ -20,7 +20,14 @@ struct HalftopApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuContentView(monitor: monitor, tools: tools, shortcuts: shortcuts)
+                .onAppear {
+                    tools.refreshServices()
+                    shortcuts.configure(tools: tools, monitor: monitor)
+                }
                 .onOpenURL { tools.run(url: $0) }
+                .onChange(of: tools.sideScreen.availabilityKey) { _, _ in
+                    shortcuts.configure(tools: tools, monitor: monitor)
+                }
         } label: {
             Image(nsImage: MenuBarIcon.image)
                 .accessibilityLabel("Halftop")

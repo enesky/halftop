@@ -27,7 +27,8 @@ show_discovery_error() {
     local message="${1:-No screen mirroring devices available.}"
     play_error_sound
     printf '%s\n' "$message" >&2
-    /usr/bin/say "No AirPlay devices found." >/dev/null 2>&1
+    /usr/bin/say "No AirPlay devices found." >/dev/null 2>&1 &
+    /bin/sleep 2
     play_error_sound
 }
 

@@ -13,12 +13,12 @@ A native SwiftUI menu bar app with macOS utilities and automation tools for half
 - **At-a-glance status:** built-in and external displays, AirPlay, lid, power source, and Energy Mode in one 2×3 overview.
 - **Clamshell controls:** checks the connected display and power adapter, supports optional battery operation, and includes an experimental lid-close override.
 - **Display and power:** dims or disables the built-in display and controls Automatic, Low Power, and supported High Power modes separately for battery and adapter use.
-- **AirPlay and [SideScreen](SideScreen/):** selects an AirPlay display or launches [SideScreen](SideScreen/) directly in USB or Wi-Fi mode—no connection-mode selection required.
+- **AirPlay and SideScreen:** selects an AirPlay display or launches the official [SideScreen](https://github.com/tranvuongquocdat/SideScreen) app directly in USB or WiFi mode—no connection-mode selection required.
 - **Sleep and alerts:** provides automatic re-sleep, bag-wake protection, low-battery and lock-screen voice alerts, and login, wake, and unlock sounds.
 - **Global shortcuts:** customizable from the app's **SHORTCUTS** section.
-  - `⌃⌥A` — Start Auto Airplay: Discovers available AirPlay displays, reads them aloud, and connects to the one selected with a number key.
-  - `⌃⌥S` — SideScreen USB: Opens [SideScreen](SideScreen/), auto-selects USB mode and starts the connection automatically.
-  - `⌃⌥W` — SideScreen Wireless: Opens [SideScreen](SideScreen/), auto-selects Wi-Fi mode and starts the connection automatically.
+  - `⌃⌥A` — Auto Airplay: Discovers available AirPlay displays, reads them aloud, and connects to the one selected with a number key.
+  - `⌃⌥S` — SideScreen USB: Opens SideScreen, auto-selects USB mode and starts the connection automatically.
+  - `⌃⌥W` — SideScreen WiFi: Opens SideScreen, auto-selects WiFi mode and starts the connection automatically.
   - `⌃⌥⌘S` — Sleep Now: Puts the Mac to sleep, even while Halftop’s sleep prevention is enabled.
 
 ## Install
@@ -28,6 +28,10 @@ Requires macOS 14 or later on Apple Silicon.
 1. Download the latest `Halftop-v*.zip` from [GitHub Releases](https://github.com/enesky/halftop/releases/latest).
 2. Unzip it and move `Halftop.app` to **Applications**.
 3. Open Halftop. It runs from the menu bar and does not appear in the Dock.
+
+SideScreen shortcuts require the official SideScreen app from [SideScreen Releases](https://github.com/tranvuongquocdat/SideScreen/releases/latest).
+If SideScreen is missing, Halftop shows an install link and hides the SideScreen USB/WiFi shortcuts.
+The optional **Launch SideScreen at Login** toggle installs a Halftop LaunchAgent that opens the official SideScreen app after login; SideScreen's own `Auto-start streaming on launch` and startup mode preferences handle the connection.
 
 ## Build from source
 

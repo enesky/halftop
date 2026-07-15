@@ -32,7 +32,8 @@ fi
 chosen_id="${devices[$((choice - 1))]}"
 chosen_name="${names[$((choice - 1))]}"
 
-say "Connecting to $chosen_name" &
+say "Connecting to $chosen_name" >/dev/null 2>&1 &
+/bin/sleep 2
 SUCCESS_SOUND="/System/Library/Sounds/Hero.aiff"
 ERROR_SOUND="/System/Library/Sounds/Sosumi.aiff"
 

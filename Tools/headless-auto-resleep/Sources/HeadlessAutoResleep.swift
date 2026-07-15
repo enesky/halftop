@@ -11,6 +11,7 @@ let stuckKeyObservationSeconds: TimeInterval = 3.0
 let stuckKeySampleIntervalSeconds: TimeInterval = 0.5
 let stuckKeyIdleThresholdSeconds: TimeInterval = 0.5
 let minDecisionGapSeconds: TimeInterval = 8.0
+let soundLeadSeconds: TimeInterval = 2.0
 let logURL = URL(fileURLWithPath: NSHomeDirectory())
     .appendingPathComponent("Library/Logs/headless-auto-resleep.log")
 
@@ -50,11 +51,15 @@ func run(_ executable: String, _ arguments: [String] = [], wait: Bool = true) {
 }
 
 func say(_ phrase: String) {
-    run("/usr/bin/say", [phrase])
+    run("/usr/bin/say", [phrase], wait: false)
 }
 
 func beep() {
-    run("/usr/bin/afplay", ["-t", "0.15", "/System/Library/Sounds/Purr.aiff"])
+    run("/usr/bin/afplay", ["-t", "0.15", "/System/Library/Sounds/Purr.aiff"], wait: false)
+}
+
+func waitForSoundLead() {
+    Thread.sleep(forTimeInterval: soundLeadSeconds)
 }
 
 func hidIdleSeconds() -> TimeInterval? {
@@ -121,6 +126,7 @@ func observeStuckKeyThenDecide() {
             if stuckKeyLikely {
                 log("auto re-sleep: stuck key likely, stuckSamples=\(stuckSamples)/\(sampleCount)")
                 beep()
+                waitForSoundLead()
                 run("/usr/bin/pmset", ["sleepnow"])
                 return
             }
@@ -173,6 +179,7 @@ func observeInitialWakeThenDecide(lockedAtWake: Bool) {
 
             log("auto re-sleep: no action, no external display, idle=\(lastIdle.map(String.init(describing:)) ?? "unknown")")
             say("auto re-sleep")
+            waitForSoundLead()
             run("/usr/bin/pmset", ["sleepnow"])
         }
     }

@@ -2,17 +2,17 @@ import Carbon.HIToolbox
 
 enum ShortcutCommand: Int, CaseIterable, Identifiable, Sendable {
     case airPlay = 1
-    case sideScreenUSB
-    case sideScreenWireless
-    case sleepNow
+    case sleepNow = 4
+    case sideScreenUSB = 2
+    case sideScreenWireless = 3
 
     var id: Int { rawValue }
 
     var title: String {
         switch self {
-        case .airPlay: "Start Auto AirPlay"
+        case .airPlay: "Auto AirPlay"
         case .sideScreenUSB: "SideScreen USB"
-        case .sideScreenWireless: "SideScreen Wireless"
+        case .sideScreenWireless: "SideScreen WiFi"
         case .sleepNow: "Sleep Now"
         }
     }
@@ -23,6 +23,13 @@ enum ShortcutCommand: Int, CaseIterable, Identifiable, Sendable {
         case .sideScreenUSB: "cable.connector"
         case .sideScreenWireless: "wifi"
         case .sleepNow: "moon.zzz"
+        }
+    }
+
+    var requiresSideScreen: Bool {
+        switch self {
+        case .airPlay, .sleepNow: false
+        case .sideScreenUSB, .sideScreenWireless: true
         }
     }
 

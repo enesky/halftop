@@ -19,6 +19,7 @@ AIRPLAY_REPO_DIR="${AIRPLAY_REPO_DIR:-$SCRIPT_DIR}"
 AIRPLAY_ENTRYPOINT="${AIRPLAY_ENTRYPOINT:-Airplay.sh}"
 SOUND_FILE="${AIRPLAY_BEEP_SOUND:-/System/Library/Sounds/Funk.aiff}"
 BEEP_DURATION_SECONDS="${AIRPLAY_BEEP_DURATION_SECONDS:-0.07}"
+SOUND_LEAD_SECONDS="${AIRPLAY_SOUND_LEAD_SECONDS:-2}"
 MODE="${1:-run}"
 
 log() {
@@ -48,7 +49,7 @@ say_error() {
 
 play_beep() {
   if [[ -r "$SOUND_FILE" ]]; then
-    /usr/bin/afplay -t "$BEEP_DURATION_SECONDS" "$SOUND_FILE" >/dev/null 2>&1
+    /usr/bin/afplay -t "$BEEP_DURATION_SECONDS" "$SOUND_FILE" >/dev/null 2>&1 &
   else
     printf '\a'
   fi
@@ -91,6 +92,7 @@ if [[ "$MODE" != "run" ]]; then
 fi
 
 beep_ready
+/bin/sleep "$SOUND_LEAD_SECONDS"
 
 cd "$AIRPLAY_REPO_DIR" || fail "Could not enter repo folder: $AIRPLAY_REPO_DIR"
 

@@ -13,6 +13,7 @@ import Foundation
     private var eventHandler: EventHandlerRef?
     private var localKeyMonitor: Any?
     private var handlers: [ShortcutCommand: () -> Void] = [:]
+    private var enabledCommands = Set(ShortcutCommand.allCases)
 
     init() {
         ShortcutCommand.selfCheck()
@@ -23,19 +24,22 @@ import Foundation
     }
 
     func configure(tools: ToolController, monitor: SystemMonitor) {
+        enabledCommands = Set(ShortcutCommand.allCases.filter { !$0.requiresSideScreen || tools.sideScreen.isSupported })
         handlers[.airPlay] = { tools.run(.airPlay) }
-        handlers[.sideScreenUSB] = { tools.run(.sideScreenUSB) }
-        handlers[.sideScreenWireless] = { tools.run(.sideScreenWireless) }
+        handlers[.sideScreenUSB] = tools.sideScreen.isSupported ? { tools.run(.sideScreenUSB) } : nil
+        handlers[.sideScreenWireless] = tools.sideScreen.isSupported ? { tools.run(.sideScreenWireless) } : nil
         handlers[.sleepNow] = {
+            let beep = Process()
+            beep.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+            beep.arguments = ["-t", "0.07", "/System/Library/Sounds/Funk.aiff"]
+            try? beep.run()
+
             let speech = Process()
             speech.executableURL = URL(fileURLWithPath: "/usr/bin/say")
             speech.arguments = ["Going to sleep"]
             try? speech.run()
             Task { @MainActor in
-                while speech.isRunning {
-                    try? await Task.sleep(for: .milliseconds(100))
-                }
-                try? await Task.sleep(for: .milliseconds(250))
+                try? await Task.sleep(for: .seconds(3))
                 monitor.goToSleep()
             }
         }
@@ -132,7 +136,7 @@ import Foundation
         hotKeys.removeAll()
         registrationErrors.removeAll()
 
-        for command in ShortcutCommand.allCases {
+        for command in enabledCommands {
             guard let binding = bindings[command] else { continue }
             var reference: EventHotKeyRef?
             let hotKeyID = EventHotKeyID(signature: signature, id: UInt32(command.rawValue))

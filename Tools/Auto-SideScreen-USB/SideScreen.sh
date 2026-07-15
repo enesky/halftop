@@ -4,17 +4,14 @@ set -euo pipefail
 # Usage:
 #   SideScreen.sh usb
 #   SideScreen.sh wireless
-#
-# Requires macOS Accessibility/Automation permission for the app that runs this
-# script: Codex/Terminal/AeroSpace, depending on how you launch it.
 
 mode="${1:-usb}"
 case "$mode" in
     usb|wired|cable|kablolu)
-        tab_names=("USB" "Wired" "Cable")
+        mode="usb"
         ;;
     wireless|wifi|kablosuz)
-        tab_names=("Wireless" "Wi-Fi" "WiFi")
+        mode="wireless"
         ;;
     *)
         echo "Usage: $0 usb|wireless" >&2
@@ -22,90 +19,55 @@ case "$mode" in
         ;;
 esac
 
-tab_csv=""
-for name in "${tab_names[@]}"; do
-    [[ -n "$tab_csv" ]] && tab_csv+=","
-    tab_csv+="$name"
-done
+app="/Applications/SideScreen.app"
+if [[ ! -d "$app" ]]; then
+    app="$(/usr/bin/mdfind "kMDItemCFBundleIdentifier == 'com.sidescreen.app'" | /usr/bin/head -n 1 || true)"
+fi
+if [[ "$app" == *"/.Trash/"* ]]; then
+    app=""
+fi
 
-/usr/bin/open -a /Applications/SideScreen.app
+if [[ ! -d "$app" ]]; then
+    echo "SideScreen is not installed. Install SideScreen:"
+    echo "https://github.com/tranvuongquocdat/SideScreen/releases/latest"
+    exit 69
+fi
 
-/usr/bin/osascript "$tab_csv" <<'APPLESCRIPT'
-on splitText(theText, delimiter)
-    set oldDelimiters to AppleScript's text item delimiters
-    set AppleScript's text item delimiters to delimiter
-    set theItems to every text item of theText
-    set AppleScript's text item delimiters to oldDelimiters
-    return theItems
-end splitText
+minimum_version="0.11.0"
+version_at_least() {
+    local current="$1"
+    local minimum="$2"
+    local IFS=.
+    local current_parts minimum_parts
+    read -r -a current_parts <<< "$current"
+    read -r -a minimum_parts <<< "$minimum"
+    for i in 0 1 2; do
+        local current_part="${current_parts[$i]:-0}"
+        local minimum_part="${minimum_parts[$i]:-0}"
+        if (( current_part > minimum_part )); then return 0; fi
+        if (( current_part < minimum_part )); then return 1; fi
+    done
+    return 0
+}
 
-on pressElement(theElement)
-    tell application "System Events"
-        try
-            perform action "AXPress" of theElement
-        on error
-            click theElement
-        end try
-    end tell
-end pressElement
+version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist" 2>/dev/null || true)
+if [[ -z "$version" ]] || ! version_at_least "$version" "$minimum_version"; then
+    echo "SideScreen $minimum_version or newer is required. Installed: ${version:-unknown}"
+    echo "https://github.com/tranvuongquocdat/SideScreen/releases/latest"
+    exit 69
+fi
 
-on elementText(theElement)
-    tell application "System Events"
-        set parts to {}
-        try
-            set end of parts to name of theElement as text
-        end try
-        try
-            set end of parts to description of theElement as text
-        end try
-        try
-            set end of parts to value of theElement as text
-        end try
-        return parts
-    end tell
-end elementText
+/usr/bin/defaults write com.sidescreen.app SideScreen_autoStartStreamingOnLaunch -bool true
+/usr/bin/defaults write com.sidescreen.app SideScreen_startupMode -string "$mode"
+/usr/bin/defaults write com.sidescreen.app SideScreen_connectionMode -string "$mode"
 
-on pressByName(processName, wantedNames)
-    tell application "System Events" to tell process processName
-        set allElements to entire contents
-        repeat with candidate in allElements
-            set texts to my elementText(candidate)
-            repeat with t in texts
-                repeat with wanted in wantedNames
-                    if (t as text) is equal to (wanted as text) then
-                        my pressElement(candidate)
-                        return true
-                    end if
-                end repeat
-            end repeat
-        end repeat
-    end tell
-    return false
-end pressByName
+if /usr/bin/pgrep -x SideScreen >/dev/null 2>&1; then
+    /usr/bin/osascript -e 'tell application id "com.sidescreen.app" to quit' >/dev/null 2>&1 || true
+    for _ in {1..30}; do
+        /usr/bin/pgrep -x SideScreen >/dev/null 2>&1 || break
+        /bin/sleep 0.1
+    done
+    /usr/bin/pkill -x SideScreen >/dev/null 2>&1 || true
+fi
 
-on run argv
-    if (count of argv) < 1 then error "missing tab names"
-    set tabNames to my splitText(item 1 of argv, ",")
-    set processName to "Side Screen"
-
-    tell application "Side Screen" to activate
-
-    tell application "System Events"
-        repeat 50 times
-            if exists process processName then
-                tell process processName
-                    if exists window 1 then exit repeat
-                end tell
-            end if
-            delay 0.1
-        end repeat
-    end tell
-
-    my pressByName(processName, tabNames)
-    delay 0.25
-
-    if my pressByName(processName, {"Start", "START"}) is false then
-        error "Could not find Side Screen Start button. Grant Accessibility/Automation permission, then try again."
-    end if
-end run
-APPLESCRIPT
+/usr/bin/open -b com.sidescreen.app

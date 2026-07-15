@@ -3,6 +3,7 @@
 dist/
 .clang-module-cache/
 **/.clang-module-cache
+.vscode/
 Tools/**/bin
 DerivedData/
 *.xcuserstate

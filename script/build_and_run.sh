@@ -40,12 +40,12 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>$APP_NAME</string>
   <key>CFBundleIconFile</key><string>Halftop.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.2.1</string>
-  <key>CFBundleVersion</key><string>0.2.1</string>
+  <key>CFBundleShortVersionString</key><string>0.3.0</string>
+  <key>CFBundleVersion</key><string>0.3.0</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
-  <key>NSAppleEventsUsageDescription</key><string>Halftop uses System Events to control Screen Mirroring and SideScreen.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Halftop uses System Events to control Screen Mirroring.</string>
   <key>CFBundleURLTypes</key><array><dict>
     <key>CFBundleURLName</key><string>$BUNDLE_ID.actions</string>
     <key>CFBundleURLSchemes</key><array><string>halftop</string></array>

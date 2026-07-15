@@ -217,7 +217,8 @@ speech=""
 for i in "${!display_names[@]}"; do
     speech+="$((i + 1)), ${display_names[$i]}. "
 done
-say "$speech"
+say "$speech" >/dev/null 2>&1 &
+/bin/sleep 2
 
 echo "$speech"
 

@@ -58,7 +58,7 @@ check() {
   [[ "$last" == "$b" ]] && exit 0
 
   echo "$b" > "$state"
-  /usr/bin/say "Battery at $p percent. Connect the power adapter."
+  /usr/bin/say "Battery at $p percent. Connect the power adapter." >/dev/null 2>&1 &
 }
 
 install_agent() {

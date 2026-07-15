@@ -7,7 +7,9 @@ struct RunHalftopToolIntent: AppIntent {
     @Parameter(title: "Action") var action: ShortcutAction
 
     func perform() async throws -> some IntentResult {
-        try ToolController.launch(action.toolAction)
+        try await MainActor.run {
+            try ToolController.launch(action.toolAction)
+        }
         return .result()
     }
 }
@@ -19,7 +21,7 @@ enum ShortcutAction: String, AppEnum {
     static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .airPlay: "Start Auto AirPlay",
         .sideScreenUSB: "Start SideScreen USB",
-        .sideScreenWireless: "Start SideScreen Wireless"
+        .sideScreenWireless: "Start SideScreen WiFi"
     ]
 
     var toolAction: ToolAction {
@@ -33,18 +35,27 @@ enum ShortcutAction: String, AppEnum {
 
 struct HalftopAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
-        AppShortcut(
+        var shortcuts = [AppShortcut(
             intent: RunHalftopToolIntent(action: .airPlay),
             phrases: ["Start AirPlay with \(.applicationName)"],
             shortTitle: "Start AirPlay",
             systemImageName: "airplayvideo"
-        )
-        AppShortcut(
-            intent: RunHalftopToolIntent(action: .sideScreenUSB),
-            phrases: ["Start SideScreen USB with \(.applicationName)"],
-            shortTitle: "SideScreen USB",
-            systemImageName: "cable.connector"
-        )
+        )]
+        if SideScreenInstallation.detect().isSupported {
+            shortcuts.append(AppShortcut(
+                intent: RunHalftopToolIntent(action: .sideScreenUSB),
+                phrases: ["Start SideScreen USB with \(.applicationName)"],
+                shortTitle: "SideScreen USB",
+                systemImageName: "cable.connector"
+            ))
+            shortcuts.append(AppShortcut(
+                intent: RunHalftopToolIntent(action: .sideScreenWireless),
+                phrases: ["Start SideScreen WiFi with \(.applicationName)"],
+                shortTitle: "SideScreen WiFi",
+                systemImageName: "wifi"
+            ))
+        }
+        return shortcuts
     }
 }
 

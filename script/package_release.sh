@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION_TAG="${1:-${GITHUB_REF_NAME:-v0.2.1}}"
+VERSION_TAG="${1:-${GITHUB_REF_NAME:-v0.3.0}}"
 VERSION="${VERSION_TAG#v}"
 APP_NAME="Halftop"
 EXECUTABLE_NAME="Halftop"
@@ -49,7 +49,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>
-  <key>NSAppleEventsUsageDescription</key><string>Halftop uses System Events to control Screen Mirroring and SideScreen.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Halftop uses System Events to control Screen Mirroring.</string>
   <key>CFBundleURLTypes</key><array><dict>
     <key>CFBundleURLName</key><string>$BUNDLE_ID.actions</string>
     <key>CFBundleURLSchemes</key><array><string>halftop</string></array>

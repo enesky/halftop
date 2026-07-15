@@ -1,20 +1,31 @@
 # SideScreen Launch Tools
 
-USB and wireless SideScreen launch actions used by Halftop.
+USB and WiFi SideScreen launch actions used by Halftop.
 
-The preferred path opens SideScreen through its URL scheme. The fallback opens `/Applications/SideScreen.app` and uses UI automation to select USB or wireless mode and press Start.
+These scripts target the official SideScreen app. They set SideScreen's startup preferences, then open `com.sidescreen.app`.
 
 ## Requirements
 
-- SideScreen installed at `/Applications/SideScreen.app`
+- Official SideScreen from [GitHub Releases](https://github.com/tranvuongquocdat/SideScreen/releases/latest)
 - Screen & System Audio Recording permission for SideScreen
-- Accessibility and Automation permission when the UI fallback is used
 
 ## Entry points
 
 ```zsh
 ./SideScreen-usb.sh
 ./SideScreen-wireless.sh
+./install-login.sh
+./uninstall-login.sh
 ```
 
 Halftop invokes these scripts directly from its application bundle. App Intents are the preferred shortcut integration.
+
+The selected mode is written to SideScreen before launch:
+
+```zsh
+defaults write com.sidescreen.app SideScreen_autoStartStreamingOnLaunch -bool true
+defaults write com.sidescreen.app SideScreen_startupMode -string usb
+defaults write com.sidescreen.app SideScreen_connectionMode -string usb
+```
+
+`install-login.sh` installs `~/Library/LaunchAgents/com.eky.halftop.sidescreen-login.plist`, which opens the official SideScreen app after login. The selected startup mode remains whatever `SideScreen-usb.sh`, `SideScreen-wireless.sh`, or SideScreen itself last saved.
